@@ -1,10 +1,15 @@
 ---
-# This is an example playbook to execute Ansible tests.
-
-- name: Verify
-  hosts: all
+- name: "Verify"
+  hosts: "all"
   gather_facts: false
+
   tasks:
-  - name: Example assertion
-    ansible.builtin.assert:
-      that: true
+    - name: "Run gh CLI"
+      ansible.builtin.command:  # noqa no-changed-when
+        cmd: >
+          gh --version
+      register: "_gh_run_result"
+
+    - name: "Check gh output"
+      ansible.builtin.assert:
+        that: "_gh_run_result | default(None)"

@@ -1,2 +1,9 @@
 ---
-# defaults file for github_cli
+# The name of the package which contains the GitHub CLI tools.
+github_cli_package_name: "gh"
+
+# The URL of the GPG key for repository validation.
+github_cli_gpg_key_url: "https://cli.github.com/packages/githubcli-archive-keyring.gpg"
+
+# The local path to the GPG key for repository validation.
+github_cli_gpg_key_path: "/usr/share/keyrings/githubcli-archive-keyring.gpg"

@@ -1,2 +1,69 @@
 ---
-# tasks file for github_cli
+- name: "Load OS-specific vars."
+  ansible.builtin.include_vars: "{{ lookup('first_found', params) }}"
+  vars:
+    params:
+      files:
+        - "{{ ansible_distribution }}.yml"
+        - "{{ ansible_os_family }}.yml"
+        - "main.yml"
+      paths:
+        - "vars"
+
+- name: "Set repository URL"
+  block:
+    - name: "Set repository URL to override value"
+      ansible.builtin.set_fact:
+        _github_cli_repository_url: "{{ github_cli_repository_url_override }}"
+      when: "github_cli_repository_url_override | default(false)"
+
+    - name: "Set repository URL to default value"
+      ansible.builtin.set_fact:
+        _github_cli_repository_url: "{{ github_cli_repository_url }}"
+      when: "not (github_cli_repository_url_override | default(false))"
+
+- name: "Install the apt repository"
+  when: "ansible_os_family == 'Debian'"
+  block:
+    - name: "Check if GPG key already exists"
+      ansible.builtin.stat:
+        path: "{{ github_cli_gpg_key_path }}"
+      register: _github_cli_gpg_key
+
+    - name: "Set GPG key fact"
+      ansible.builtin.set_fact:
+        _github_cli_gpg_key_exists: >
+          {{ _github_cli_gpg_key is defined and
+          _github_cli_gpg_key.stat is defined and
+          _github_cli_gpg_key.stat.exists | bool }}
+
+    - name: "Download GPG key"
+      when: not _github_cli_gpg_key_exists
+      ansible.builtin.get_url:
+        url: "{{ github_cli_gpg_key_url }}"
+        dest: "{{ github_cli_gpg_key_path }}"
+        mode: "0644"
+
+    - name: "Add GitHub CLI apt repository"
+      ansible.builtin.apt_repository:
+        filename: "github-cli"
+        repo: >
+          deb [arch=amd64 signed-by={{ github_cli_gpg_key_path }}] {{ _github_cli_repository_url }} stable main
+
+- name: "Install the yum repository"
+  when: "ansible_os_family == 'RedHat'"
+  block:
+    - name: "Add the GitHub CLI yum repository"
+      ansible.builtin.yum_repository:
+        name: "gh-cli"
+        description: "GitHub CLI"
+        state: "present"
+        baseurl: "{{ _github_cli_repository_url }}"
+        gpgcheck: "yes"
+        gpgkey: "{{ github_cli_gpg_key_url }}"
+
+
+- name: "Install GitHub CLI package"
+  ansible.builtin.package:
+    name: "{{ github_cli_package_name }}"
+    state: "present"
